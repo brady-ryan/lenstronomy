@@ -9,7 +9,23 @@ __all__ = ["SPP"]
 
 
 class SPP(LensProfileBase):
-    """Class for circular power-law mass distribution."""
+    """Class for Spherical Power Law Potential (SPP).
+
+    .. math::
+        \\psi(x, y) = \\frac{2 E^2}{\\eta^2} \\left( \\frac{p^2}{E^2} \\right)^{\\frac{\\eta}{2}}
+
+    where :math:`\\theta_E` is the Einstein radius,
+    :math:`\\gamma` is the power-law slope of the mass distribution (with :math:`\\gamma < 2`),
+    :math:`\\eta = -\\gamma` + 3 is the power-law exponent transformation,
+    :math:`E` is an effective Einstein radius based on :math:`\\theta_E` and :math:`\\gamma`, defined as
+
+    .. math::
+        E = \\frac{\\theta_E}{\\left( \\frac{3 - \\gamma}{2} \\right)^{\\frac{1}{1 - \\gamma}}},
+
+    and :math:`p^2` is the radius squared from the center, calculated from the coordinates :math:`x` and :math:`y`.
+
+    For a full mathematical derivation see Suyu (2012), https://ui.adsabs.harvard.edu/abs/2012MNRAS.426..868S/abstract.
+    """
 
     param_names = ["theta_E", "gamma", "center_x", "center_y"]
     lower_limit_default = {
@@ -47,10 +63,19 @@ class SPP(LensProfileBase):
         eta = -gamma + 3
 
         p2 = x_**2 + y_**2
-        s2 = 0.0  # softening
-        return 2 * E**2 / eta**2 * ((p2 + s2) / E**2) ** (eta / 2)
+        return 2 * E**2 / eta**2 * ((p2) / E**2) ** (eta / 2)
 
     def derivatives(self, x, y, theta_E, gamma, center_x=0.0, center_y=0.0):
+        """
+        :param x: x-coordinate in image plane
+        :param y: y-coordinate in image plane
+        :param theta_E: Einstein radius
+        :param gamma: power law slope
+        :param center_x: profile center
+        :param center_y: profile center
+        :return: alpha_x, alpha_y
+        """
+          
         gamma = self._gamma_limit(gamma)
 
         xt1 = x - center_x
@@ -66,6 +91,17 @@ class SPP(LensProfileBase):
         return f_x, f_y
 
     def hessian(self, x, y, theta_E, gamma, center_x=0.0, center_y=0.0):
+        """
+
+        :param x: x-coordinate in image plane
+        :param y: y-coordinate in image plane
+        :param theta_E: Einstein radius
+        :param gamma: power law slope
+        :param center_x: profile center
+        :param center_y: profile center
+        :return: f_xx, f_xy, f_yx, f_yy
+        """
+            
         gamma = self._gamma_limit(gamma)
         xt1 = x - center_x
         xt2 = y - center_y
@@ -107,10 +143,11 @@ class SPP(LensProfileBase):
     def rho2theta(rho0, gamma):
         """Converts 3d density into 2d projected density parameter.
 
-        :param rho0:
-        :param gamma:
-        :return:
+        :param rho0: initial density parameter
+        :param gamma: power-law slope
+        :return: 2d projected density parameter
         """
+
         fac = (
             np.sqrt(np.pi)
             * special.gamma(1.0 / 2 * (-1 + gamma))
@@ -120,7 +157,6 @@ class SPP(LensProfileBase):
             * rho0
         )
 
-        # fac = theta_E**(gamma - 1)
         theta_E = fac ** (1.0 / (gamma - 1))
         return theta_E
 
@@ -129,10 +165,11 @@ class SPP(LensProfileBase):
         """Converts projected density parameter (in units of deflection) into 3d density
         parameter.
 
-        :param theta_E:
-        :param gamma:
-        :return:
+        :param theta_E: Einstein radius
+        :param gamma: power-law slope
+        :return: 3d density parameter
         """
+
         fac1 = (
             np.sqrt(np.pi)
             * special.gamma(1.0 / 2 * (-1 + gamma))
@@ -146,35 +183,39 @@ class SPP(LensProfileBase):
 
     @staticmethod
     def mass_3d(r, rho0, gamma):
-        """Mass enclosed a 3d sphere or radius r.
+        """Mass enclosed in a 3d sphere of radius r.
 
-        :param r:
-        :param rho0:
-        :param gamma:
-        :return:
+        :param r: radius of the sphere
+        :param rho0: 3d density parameter
+        :param gamma: power-law slope
+        :return: mass enclosed within radius r
         """
+
         mass_3d = 4 * np.pi * rho0 / (-gamma + 3) * r ** (-gamma + 3)
         return mass_3d
 
     def mass_3d_lens(self, r, theta_E, gamma):
         """
+        Computes the mass enclosed in a 3d sphere of radius r using lens model parameters.
 
-        :param r:
-        :param theta_E:
-        :param gamma:
-        :return:
+        :param r: radius of the sphere
+        :param theta_E: Einstein radius
+        :param gamma: power-law slope
+        :return: mass enclosed within radius r
         """
+
         rho0 = self.theta2rho(theta_E, gamma)
         return self.mass_3d(r, rho0, gamma)
 
     def mass_2d(self, r, rho0, gamma):
-        """Mass enclosed projected 2d sphere of radius r.
+        """Mass enclosed in a projected 2d sphere of radius r.
 
-        :param r:
-        :param rho0:
-        :param gamma:
-        :return:
+        :param r: projected radius
+        :param rho0: 3d density parameter
+        :param gamma: power-law slope
+        :return: mass enclosed within projected radius r
         """
+
         alpha = (
             np.sqrt(np.pi)
             * special.gamma(1.0 / 2 * (-1 + gamma))
@@ -189,26 +230,29 @@ class SPP(LensProfileBase):
 
     def mass_2d_lens(self, r, theta_E, gamma):
         """
+        mass enclosed in 2d sphere of radius r
 
         :param r: projected radius
         :param theta_E: Einstein radius
         :param gamma: power-law slope
-        :return: 2d projected radius enclosed
+        :return: mass enclosed within projected radius r
         """
+
         rho0 = self.theta2rho(theta_E, gamma)
         return self.mass_2d(r, rho0, gamma)
 
     def grav_pot(self, x, y, rho0, gamma, center_x=0, center_y=0):
-        """Gravitational potential (modulo 4 pi G and rho0 in appropriate units)
+        """Gravitational potential (modulo 4 pi G and rho0 in appropriate units).
 
-        :param x:
-        :param y:
-        :param rho0:
-        :param gamma:
-        :param center_x:
-        :param center_y:
-        :return:
+        :param x: x-coordinate in image plane
+        :param y: y-coordinate in image plane
+        :param rho0: 3d density parameter
+        :param gamma: power-law slope
+        :param center_x: x-coordinate of profile center
+        :param center_y: y-coordinate of profile center
+        :return: gravitational potential
         """
+
         x_ = x - center_x
         y_ = y - center_y
         r = np.sqrt(x_**2 + y_**2)
@@ -220,10 +264,10 @@ class SPP(LensProfileBase):
     def density(r, rho0, gamma):
         """Computes the density.
 
-        :param r:
-        :param rho0:
-        :param gamma:
-        :return:
+        :param r: radius
+        :param rho0: 3d density parameter
+        :param gamma: power-law slope
+        :return: density at radius r
         """
         rho = rho0 / r**gamma
         return rho
@@ -233,7 +277,12 @@ class SPP(LensProfileBase):
 
         The integral in projected in units of angles (i.e. arc seconds) results in the
         convergence quantity.
+
+        :param r: radius
+        :param theta_E: Einstein radius
+        :param gamma: power-law slope
         """
+
         rho0 = self.theta2rho(theta_E, gamma)
         return self.density(r, rho0, gamma)
 
@@ -241,14 +290,15 @@ class SPP(LensProfileBase):
     def density_2d(x, y, rho0, gamma, center_x=0, center_y=0):
         """Projected density.
 
-        :param x:
-        :param y:
-        :param rho0:
-        :param gamma:
-        :param center_x:
-        :param center_y:
-        :return:
+        :param x: x-coordinate in image plane
+        :param y: y-coordinate in image plane
+        :param rho0: 3d density parameter
+        :param gamma: power-law slope
+        :param center_x: x-coordinate of profile center
+        :param center_y: y-coordinate of profile center
+        :return: projected density
         """
+    
         x_ = x - center_x
         y_ = y - center_y
         r = np.sqrt(x_**2 + y_**2)
@@ -266,6 +316,10 @@ class SPP(LensProfileBase):
         """Limits the power-law slope to certain bounds.
 
         :param gamma: power-law slope
-        :return: bounded power-law slopte
+        :return: bounded power-law slope
         """
+
+        if gamma > 2.:
+            gamma = 2.
+
         return gamma
