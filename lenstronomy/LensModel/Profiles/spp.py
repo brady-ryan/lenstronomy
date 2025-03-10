@@ -9,15 +9,14 @@ __all__ = ["SPP"]
 
 
 class SPP(LensProfileBase):
-    """Class for Spherical Power Law Potential (SPP).
+    """Class for Spherical Power Law Potential (SPP):
 
     .. math::
         \\psi(x, y) = \\frac{2 E^2}{\\eta^2} \\left( \\frac{p^2}{E^2} \\right)^{\\frac{\\eta}{2}}
 
-    where :math:`\\theta_E` is the Einstein radius,
+    where :math:`\\eta = -\\gamma` + 3 is the power-law exponent transformation,
     :math:`\\gamma` is the power-law slope of the mass distribution (with :math:`\\gamma < 2`),
-    :math:`\\eta = -\\gamma` + 3 is the power-law exponent transformation,
-    :math:`E` is an effective Einstein radius based on :math:`\\theta_E` and :math:`\\gamma`, defined as
+    :math:`E` is an effective Einstein radius based on the Einstein radius, :math:`\\theta_E`, and :math:`\\gamma`, defined as
 
     .. math::
         E = \\frac{\\theta_E}{\\left( \\frac{3 - \\gamma}{2} \\right)^{\\frac{1}{1 - \\gamma}}},
